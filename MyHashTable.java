@@ -1,120 +1,157 @@
-import java.util.NoSuchElementException;
+import java.util.ArrayList;
+import java.util.Objects;
 
-public class MyHashTable <K,V>{
-    private HashNode<K,V>[] chainArray;
-    private int M = 11;
-    private int size;
-
-    public int size() {
-        return size;
-    }
-
-    private class HashNode<K,V>{
+public class MyHashTable <K, V>{
+    private class HashNode<K, V>{
         private K key;
-        private V value;
-        private HashNode<K,V> next;
+        private V val;
+        private HashNode<K, V> next;
 
-        public HashNode(K key, V value) {
+        final int hashCode;
+
+        public HashNode(){
+            hashCode = 0;
+            next = null;
+        }
+        public HashNode(K key, V val, int hashCode){
             this.key = key;
-            this.value = value;
+            this.val = val;
+            this.hashCode = hashCode;
         }
 
         @Override
         public String toString() {
-            return "{" + key + " " + value + '}';
+            return "{" + key + " " + val + "}";
         }
     }
 
+    private ArrayList<HashNode<K,V>> chainArray;
+    private int M = 11;
+    private int size;
 
-    public MyHashTable(){
-        this(11);
+    public MyHashTable() {
+        chainArray = new ArrayList<>();
+        size = 0;
+        for (int i = 0; i < M; i++){
+            chainArray.add(null);
+        }
     }
 
-    public MyHashTable(int M){
-        this.M = size;
-        chainArray = new HashNode[M];
-        this.size = 0;
+    public MyHashTable(int M) {
+        chainArray = new ArrayList<>();
+        this.M = M;
+        size = 0;
+        for (int i = 0; i < M; i++){
+            chainArray.add(null);
+        }
     }
-
 
     private int hash(K key){
-        return key.toString().length() % chainArray.length;
+        return Objects.hashCode(key);
     }
 
-
-    public V remove(K key) {
-        int hashedKey = hash(key);
-        HashNode head = chainArray[hashedKey];
-        HashNode previous = null;
-        while(head!= null){
-            if(head.key.equals(key)){
-                break; // while loop break
-            }
-            previous = head;
-            head = head.next;
-        }
-        if(head == null){return null;}
-        size--;
-        if(previous != null){
-            previous.next = head.next;
-        }
-        else{
-            chainArray[hashedKey] = head.next;
-        }
-        return (V) head.value;
+    private int getIndex(K key){
+        int hash = hash(key);
+        int index = hash % M;
+        if (index < 0) index *= -1;
+        return index;
     }
 
+    public void put(K key, V val){
+        int index = getIndex(key);
+        int hash = hash(key);
+        HashNode<K, V> head = chainArray.get(index);
 
-    public void put(K key, V value){
-        if(key == null || value == null){throw new NoSuchElementException("wrong");}
-
-        int hashedKey = hash(key);
-        HashNode head = chainArray[hashedKey];
         while(head != null){
-            if(head.key.equals(key)){
-                head.value = value;
+            if (head.key.equals(key) && head.hashCode == hash){
+                head.val = val;
                 return;
             }
             head = head.next;
         }
         size++;
-        head = chainArray[hashedKey];
-        HashNode employee = new HashNode(key,value);
-        employee.next = head;
-        chainArray[hashedKey] = employee;
+        head = chainArray.get(index);
+        HashNode<K, V> newNode = new HashNode<>(key, val, hash);
+        newNode.next = head;
+        chainArray.set(index, newNode);
+
+        //CHECK LOAD FACTOR
+        if ( (double) (size / M) > 0.6){
+            System.out.println("LOAD FACTOR " + key + " " + val);
+            M *= 2;
+            ArrayList<HashNode<K, V>> oldList = chainArray;
+            chainArray = new ArrayList<>();
+            size = 0;
+            for (int i = 0; i < M; i ++){
+                chainArray.add(null);
+            }
+            for (int i = 0; i < oldList.size(); i++){
+                HashNode<K, V> start = oldList.get(i);
+                while(start != null){
+                    put(start.key, start.val);
+                    start = start.next;
+                }
+            }
+        }
+
     }
 
+    public void print(){
+        for (int i = 0; i < M; i ++){
+            HashNode<K, V> head = chainArray.get(i);
+            if (head != null){
+                while(head != null){
+                    System.out.print("{" + head.key + "," + head.val + "}  ");
+                    head = head.next;
+                }
+                System.out.println();
+            }
+        }
+    }
 
     public V get(K key){
-        if(key == null){throw new IllegalArgumentException("Key is null");}
+        int index = getIndex(key);
+        int hash = hash(key);
+        HashNode<K, V> head = chainArray.get(index);
 
-        int hashedKey = hash(key);
-        HashNode head = chainArray[hashedKey];
-        while(head != null) {
-            if (head.key.equals(key)) {
-                System.out.println(head.value);
+        while(head != null){
+            if (head.key.equals(key) && head.hashCode == hash){
+                return head.val;
             }
             head = head.next;
         }
         return null;
     }
 
-
-    public void getKey(V value){
-        if(value == null){throw new IllegalArgumentException("Value is null");}
-
-        int hashedValue = hash((K) value);
-        HashNode head = chainArray[hashedValue];
+    public V remove(K key){
+        int index = getIndex(key);
+        int hash = hash(key);
+        HashNode<K, V> head = chainArray.get(index);
+        HashNode<K, V> prev = null;
         while(head != null){
-            if(head.value.equals(value)){
-                System.out.println(head.key);
-            }
+            if (head.key.equals(key) && hash == head.hashCode) break;
+            prev = head;
             head = head.next;
         }
-    }
+        if (head == null) return null;
 
+        size--;
+
+        if(prev != null) prev.next = head.next;
+        else chainArray.set(index, head.next);
+        return head.val;
+    }
 
     public boolean contains(V value){
         return contains(value);
     }
+
+    public K getKey(V val){
+        return null;
+    }
+
+    public int size(){
+        return size;
+    }
+
 }
